@@ -1,0 +1,11 @@
+MANIFEST: config/manifest.tab
+QUALITY_THRESHOLD:
+  - 10
+  - 20
+READ_MIN_LENGTH:
+  HiFi: 1000
+  ONT: 5000
+DS:
+  - 50
+DS_METHOD:
+  - long
