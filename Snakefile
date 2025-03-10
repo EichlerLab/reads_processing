@@ -158,8 +158,9 @@ rule extract_reads:
                 )
 
 #            shell(f'samtools fqidx -r {params.reg} {file} | seqtk seq -l0 >> {resources.tmpdir}/$(basename {output.reads})')
-        shell(f'rm -f {params.reg}')
         shell(f'rsync -av {resources.tmpdir}/$(basename {output.reads}) {output.reads}')
+        shell(f'rm -f {params.reg}')
+        shell(f'rm -f {resources.tmpdir}/$(basename {output.reads})')
 
 rule compress_and_index:
     input:
@@ -175,7 +176,6 @@ rule compress_and_index:
         '''
         bgzip -c {input.reads} > {output.reads}
         samtools fqidx {output.reads}
-        rm -f {resources.tmpdir}/$(basename {input.reads})
         '''
 
 rule calculate_stats:
