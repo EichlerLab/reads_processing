@@ -22,9 +22,11 @@ def get_read_paths(fofn):
     return read_paths
 
 def get_run_id(read_path):
-    if re.search("nanopore", read_path):
-        return read_path.split("/")[13]
-    elif re.search("PacBio_HiFi", read_path):
+    ont_runid_pattern = r'\d{8}_[0-9]{4}_[A-Z0-9]{2}_[A-Z]+[0-9]+_[a-z0-9]{8}'
+ 
+    try:
+        return re.findall(ont_runid_pattern, read_path)[0]
+    except:
         return read_path.split("/")[-1].replace(".fastq.gz","").replace(".","_")
 
 
