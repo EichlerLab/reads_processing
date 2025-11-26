@@ -130,22 +130,23 @@ rule extract_reads:
     output:
         reads = temp('downsampled_reads/{sample}/{seq_type}_{method}_Q{quality_threshold}_{ds}X.fastq')
     params:
-        reg = '/data/scratch/tmp/{sample}/{seq_type}_{method}_Q{quality_threshold}_{ds}_reg.tab',
+        reg = lambda wildcards, resources: f"{resources.tmpdir}/{wildcards.sample}/{wildcards.seq_type}_{wildcards.method}_Q{wildcards.quality_threshold}_{wildcards.ds}_reg.tab",
     threads: 1
     resources:
         mem = 96,
-        hrs = 72
+        hrs = 120,
+        heavy_io = 3
     run:
         ## in case the temp fastq was not deleted due to an interruption.
-        if os.path.isfile(f"{resources.tmpdir}/{os.path.basename(output.reads)}"): 
+        if os.path.isfile(f"{resources.tmpdir}/{wildcards.sample}/{os.path.basename(output.reads)}"): 
             out_read_base = os.path.basename(output.reads)
             print(f"delete tmp : {out_read_base}")
-            shell(f'rm -f {resources.tmpdir}/$(basename {output.reads})')
+            shell(f"rm -f {resources.tmpdir}/{wildcards.sample}/$(basename {output.reads})")
         ## <===============================
 
         df = pd.read_csv(input.regions, sep='\t')
         
-        os.makedirs(f"/data/scratch/tmp/{wildcards.sample}", exist_ok=True)
+        os.makedirs(f"{resources.tmpdir}/{wildcards.sample}", exist_ok=True)
         
 
         for file in df['source'].unique():
@@ -156,13 +157,13 @@ rule extract_reads:
                 """. /usr/share/Modules/init/bash;"""
                 """module load modules modules-init modules-gs/prod modules-eichler/prod;"""
                 """module load seqtk/1.4 samtools/1.19;"""
-                """samtools fqidx -r {params.reg} {file} | seqtk seq -l0 >> {resources.tmpdir}/$(basename {output.reads})"""
+                """samtools fqidx -r {params.reg} {file} | seqtk seq -l0 >> {resources.tmpdir}/{wildcards.sample}/$(basename {output.reads})"""
                 )
 
-#            shell(f'samtools fqidx -r {params.reg} {file} | seqtk seq -l0 >> {resources.tmpdir}/$(basename {output.reads})')
-        shell(f'rsync -av {resources.tmpdir}/$(basename {output.reads}) {output.reads}')
-        shell(f'rm -f {params.reg}')
-        shell(f'rm -f {resources.tmpdir}/$(basename {output.reads})')
+#            shell(f"samtools fqidx -r {params.reg} {file} | seqtk seq -l0 >> {resources.tmpdir}/{wildcards.sample}/$(basename {output.reads})")
+        shell(f"rsync -av {resources.tmpdir}/{wildcards.sample}/$(basename {output.reads}) {output.reads}")
+        shell(f"rm -f {params.reg}")
+        shell(f"rm -f {resources.tmpdir}/{wildcards.sample}/$(basename {output.reads})")
 
 rule compress_and_index:
     input:
@@ -170,15 +171,14 @@ rule compress_and_index:
     output:
         reads = 'downsampled_reads/{sample}/{seq_type}_{method}_Q{quality_threshold}_{ds}X.fastq.gz',
         fai = 'downsampled_reads/{sample}/{seq_type}_{method}_Q{quality_threshold}_{ds}X.fastq.gz.fai',
-    threads: 1
+    threads: 16,
     resources:
         mem = 16,
         hrs = 72
-    shell:
-        '''
-        bgzip -c {input.reads} > {output.reads}
+    shell: """
+        bgzip @ {thread} -c {input.reads} > {output.reads}
         samtools fqidx {output.reads}
-        '''
+        """
 
 rule calculate_stats:
     input:
@@ -190,8 +190,7 @@ rule calculate_stats:
     resources:
         mem = 16,
         hrs = 4
-    shell:
-        """
+    shell: """
         /net/eichler/vol28/software/pipelines/compteam_tools/ont_stats -f {input.reads} -s {wildcards.sample}_Q{wildcards.quality_threshold}_{wildcards.ds}X -o {output.stats} -p {output.plot} -l
-        """
+    """
         
