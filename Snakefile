@@ -203,7 +203,7 @@ rule extract_chunk_reads:
     resources:
         mem = 96,
         hrs = 120,
-        heavy_io = 3
+        heavy_io = 1
     run:
         ## in case the temp fastq was not deleted due to an interruption.
         if os.path.isfile(f"{resources.tmpdir}/{wildcards.sample}/{os.path.basename(output.reads)}"): 
@@ -237,7 +237,7 @@ rule compress_and_index:
     input:
         reads = rules.extract_chunk_reads.output.reads
     output:
-        reads = "downsampled_reads/{sample}/{seq_type}_{method}_Q{quality_threshold}_{ds}X_{chunk}.fastq.gz",
+        reads = temp("downsampled_reads/{sample}/{seq_type}_{method}_Q{quality_threshold}_{ds}X_{chunk}.fastq.gz"),
         fai = "downsampled_reads/{sample}/{seq_type}_{method}_Q{quality_threshold}_{ds}X_{chunk}.fastq.gz.fai"
     threads: 16,
     resources:
@@ -257,7 +257,7 @@ rule merged_and_index:
     threads:1,
     resources:
         mem = 128,
-        hrs = 72,
+        hrs = 120,
     run:
         chunk_files = list(input)
         if len(chunk_files) == 1:
